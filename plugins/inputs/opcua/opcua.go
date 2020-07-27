@@ -48,8 +48,7 @@ func (o *OPCUA) Init() error {
 	opts = append(opts, opcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	o.ctx = context.Background()
-	// This version doesn't support security yet
-	//o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
+	// This version doesn't support certificates yet, only anonymous and passwords
 	o.client = opcua.NewClient(o.URL, opts...)
 
 	log.Print("opcua: Starting opcua plugin to monitor: ", o.URL)
@@ -127,7 +126,8 @@ const sampleConfig = `
   # Password = "bar"
 
   ## List of Nodes to monitor
-  Nodes = [{Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
+  Nodes = [
+  {Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
   {Tag = "Tag2", NodeID = "ns=1;i=51028"}
   ]
 `
