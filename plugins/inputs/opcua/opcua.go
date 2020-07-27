@@ -10,7 +10,7 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
-// Structure for all the plugin info
+// OPCUA : Structure for all the plugin info
 type OPCUA struct {
 	ServerName string      `toml:"ServerName"`
 	URL        string      `toml:"URL"`
@@ -22,7 +22,7 @@ type OPCUA struct {
 	req        *ua.ReadRequest
 }
 
-// Add this plugin to telegraf
+// Init : function to intialize the plugin
 func (o *OPCUA) Init() error {
 
 	//var err error
