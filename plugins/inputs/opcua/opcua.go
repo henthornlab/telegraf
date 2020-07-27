@@ -17,16 +17,18 @@ type OPCUA struct {
 	Nodes      []string `toml:"Nodes"`
 	ctx        context.Context
 	client     *gopcua.Client
-	ID         *ua.NodeID
+	ID         []*ua.NodeID
+	ReadValID  []*ua.ReadValueID
 	req        *ua.ReadRequest
 }
 
 // Add this plugin to telegraf
 func (o *OPCUA) Init() error {
 
-	var err error
-	o.ctx = context.Background()
+	//var err error
 
+	o.ctx = context.Background()
+	// This version doesn't support security yet
 	o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	log.Print("Starting opcua plugin to monitor:", o.URL)
@@ -39,17 +41,36 @@ func (o *OPCUA) Init() error {
 		log.Fatal(err)
 	}
 
-	log.Print("Parsing nodeID")
-	o.ID, err = ua.ParseNodeID("ns=1;s=the.answer")
-	if err != nil {
-		log.Fatalf("invalid node id: %v", err)
+	log.Print("Parsing nodeID's")
+
+	for i := range o.Nodes {
+		log.Print("Parsing", o.Nodes[i])
+		tempID, err := ua.ParseNodeID(o.Nodes[i])
+		if err != nil {
+			log.Fatalf("invalid node id: %v", err)
+		}
+		o.ID = append(o.ID, tempID)
+		log.Print("Building ReadValID ", tempID)
+		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
+
 	}
 
+	//o.ID, err = ua.ParseNodeID("ns=1;s=the.answer")
+	//if err != nil {
+	//	log.Fatalf("invalid node id: %v", err)
+	//}
+
 	log.Print("Building ReadRequest")
+	//o.req = &ua.ReadRequest{
+	//	MaxAge: 2000,
+	//	NodesToRead: []*ua.ReadValueID{
+	//		&ua.ReadValueID{NodeID: o.ID[0]}},
+	//	TimestampsToReturn: ua.TimestampsToReturnBoth,
+	//}
+
 	o.req = &ua.ReadRequest{
-		MaxAge: 2000,
-		NodesToRead: []*ua.ReadValueID{
-			&ua.ReadValueID{NodeID: o.ID}},
+		MaxAge:             2000,
+		NodesToRead:        o.ReadValID,
 		TimestampsToReturn: ua.TimestampsToReturnBoth,
 	}
 
@@ -64,22 +85,24 @@ func init() {
 // Gather implements the telegraf plugin interface method for data accumulation
 func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
-	log.Print("In Gather() and attempting read")
+	fields := make(map[string]interface{})
+	tags := make(map[string]string)
 
 	resp, err := o.client.Read(o.req)
 
 	if err != nil {
 		log.Fatalf("Read failed: %s", err)
 	}
-	if resp.Results[0].Status != ua.StatusOK {
-		log.Fatalf("Status not OK: %v", resp.Results[0].Status)
+
+	for i := range resp.Results {
+		if resp.Results[i].Status != ua.StatusOK {
+			log.Fatalf("Status not OK: %v", resp.Results[i].Status)
+		}
+		//log.Printf("%#v", resp.Results[i].Value.Value())
+		fields[o.Nodes[i]] = resp.Results[i].Value.Value()
+
 	}
-	log.Printf("%#v", resp.Results[0].Value.Value())
 
-	fields := make(map[string]interface{})
-	tags := make(map[string]string)
-
-	fields["ns1"] = resp.Results[0].Value.Value()
 	tags["server"] = o.ServerName
 
 	acc.AddFields("Answer", fields, tags)
@@ -102,7 +125,7 @@ const sampleConfig = `
   ## List of Nodes to monitor
   ## List of Nodes to monitor
 
-  Nodes = ["ns=1;s=the.answer","ns=1;i=2345"]
+  Nodes = ["ns=1;s=the.answer","ns=1;i=51028"]
 `
 
 // SampleConfig returns a basic configuration for the plugin
