@@ -25,7 +25,7 @@
 # Configuration for telegraf agent
 [agent]
   ## Default data collection interval for all inputs
-  interval = "2s"
+  interval = "10s"
   ## Rounds collection interval to 'interval'
   ## ie, if interval="10s" then always collect on :00, :10, :20, etc.
   round_interval = true
@@ -109,11 +109,11 @@
   ## urls will be written to each interval.
   # urls = ["unix:///var/run/influxdb.sock"]
   # urls = ["udp://127.0.0.1:8089"]
-   urls = ["https://henthornlab.org:8086"]
+  # urls = ["http://127.0.0.1:8086"]
 
   ## The target database for metrics; will be created as needed.
   ## For UDP url endpoint database needs to be configured on server side.
-   database = "opcua-dev"
+  # database = "telegraf"
 
   ## The value of this tag will be used to determine the database.  If this
   ## tag is not set the 'database' option is used as the default.
@@ -806,23 +806,19 @@
 
 # Connect to OPC-UA Server
 [[inputs.opcua]]
-   ## OPC-UA Connection Configuration
+  ## OPC-UA Connection Configuration
   ##
   ## The plugin designed to connect to OPC UA devices
   ## Currently supports anonymous mode only
   ##
   ## Name given to OPC UA server for logging and tags
-  ServerName = "HenthornLab.org"
-  ## URL including endpoint. Currenly supports opc.tcp://
-  URL = "opc.tcp://henthornlab.org:4840"
-  ## Select authorization mode. Either "anonymous" or "user-password"
-  ## Be sure to provide a username/password if selecting "user-password"
-  Authorization = "anonymous"
-  # Username = "foo"
-  # Password = "bar"
+  ServerName = "Device"
+  ## URL including endpoint
+  URL = "http://localhost.com:4840/endpoint"
   ##
   ## List of Nodes to monitor
 
-  Nodes = [{Tag = "TheAnswer", NodeID = "ns=1;s=the.answer"},
-  {Tag = "aFloat", NodeID = "ns=1;i=51028"}
+  Nodes = [{Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
+  {Tag = "Tag2", NodeID = "ns=1;i=51028"}
   ]
+

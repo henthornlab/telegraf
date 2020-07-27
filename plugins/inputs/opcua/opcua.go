@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/gopcua/opcua"
 	gopcua "github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
 	"github.com/influxdata/telegraf"
@@ -12,36 +13,57 @@ import (
 
 // OPCUA : Structure for all the plugin info
 type OPCUA struct {
-	ServerName string      `toml:"ServerName"`
-	URL        string      `toml:"URL"`
-	Nodes      []opcuaNode `toml:"Nodes"`
-	ctx        context.Context
-	client     *gopcua.Client
-	ID         []*ua.NodeID
-	ReadValID  []*ua.ReadValueID
-	req        *ua.ReadRequest
+	ServerName    string      `toml:"ServerName"`
+	URL           string      `toml:"URL"`
+	Nodes         []opcuaNode `toml:"Nodes"`
+	Authorization string      `toml:"Authorization"`
+	Username      string      `toml:"Username"`
+	Password      string      `toml:"Password"`
+	ctx           context.Context
+	client        *gopcua.Client
+	ID            []*ua.NodeID
+	ReadValID     []*ua.ReadValueID
+	req           *ua.ReadRequest
 }
 
 // Init : function to intialize the plugin
 func (o *OPCUA) Init() error {
 
-	//var err error
+	var authOption gopcua.Option
+	opts := []opcua.Option{}
+
+	// Need to determine how the user wishes to connect
+	switch o.Authorization {
+	case "anonymous":
+		authOption = opcua.AuthAnonymous()
+
+	case "user-password":
+		authOption = opcua.AuthUsername(o.Username, o.Password)
+
+	default:
+		log.Print("opcua: No valid authorization chosen... defaulting to anonymous")
+		authOption = opcua.AuthAnonymous()
+	}
+
+	opts = append(opts, authOption)
+	opts = append(opts, gopcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	o.ctx = context.Background()
 	// This version doesn't support security yet
-	o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
+	//o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
+	o.client = gopcua.NewClient(o.URL, opts...)
 
-	log.Print("Starting opcua plugin to monitor: ", o.URL)
+	log.Print("opcua: Starting opcua plugin to monitor: ", o.URL)
 
 	if err := o.client.Connect(o.ctx); err != nil {
-		log.Print("Fatal error in client connect")
+		log.Print("opcua: Fatal error in client connect")
 		log.Fatal(err)
 	}
 
 	for i := range o.Nodes {
 		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
-			log.Fatalf("invalid node id: %v", err)
+			log.Fatalf("opcua: invalid node id: %v", err)
 		}
 		o.ID = append(o.ID, tempID)
 		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
@@ -68,12 +90,12 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 	resp, err := o.client.Read(o.req)
 
 	if err != nil {
-		log.Fatalf("Read failed: %s", err)
+		log.Fatalf("opcua: Read failed: %s", err)
 	}
 
 	for i := range resp.Results {
 		if resp.Results[i].Status != ua.StatusOK {
-			log.Fatalf("Status not OK: %v", resp.Results[i].Status)
+			log.Fatalf("opcua: Status not OK: %v", resp.Results[i].Status)
 		}
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
@@ -88,7 +110,7 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-const description = `Connect to OPC-UA Server`
+const description = `Monitor nodes on an OPC-UA Server`
 const sampleConfig = `
   ## OPC-UA Connection Configuration
   ##
@@ -99,9 +121,13 @@ const sampleConfig = `
   ServerName = "Device"
   ## URL including endpoint
   URL = "http://localhost.com:4840/endpoint"
-  ##
-  ## List of Nodes to monitor
+  ## Select authorization mode. Either "anonymous" or "user-password"
+  ## Be sure to provide a username/password if selecting "user-password"
+  Authorization = "anonymous"
+  # Username = "foo"
+  # Password = "bar"
 
+  ## List of Nodes to monitor
   Nodes = [{Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
   {Tag = "Tag2", NodeID = "ns=1;i=51028"}
   ]

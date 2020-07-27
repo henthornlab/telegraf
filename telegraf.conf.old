@@ -815,11 +815,6 @@
   ServerName = "HenthornLab.org"
   ## URL including endpoint. Currenly supports opc.tcp://
   URL = "opc.tcp://henthornlab.org:4840"
-  ## Select authorization mode. Either "anonymous" or "user-password"
-  ## Be sure to provide a username/password if selecting "user-password"
-  Authorization = "anonymous"
-  # Username = "foo"
-  # Password = "bar"
   ##
   ## List of Nodes to monitor
 
