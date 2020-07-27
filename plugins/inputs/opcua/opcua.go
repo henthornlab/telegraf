@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/gopcua/opcua"
-	gopcua "github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
@@ -20,7 +19,7 @@ type OPCUA struct {
 	Username      string      `toml:"Username"`
 	Password      string      `toml:"Password"`
 	ctx           context.Context
-	client        *gopcua.Client
+	client        *opcua.Client
 	ID            []*ua.NodeID
 	ReadValID     []*ua.ReadValueID
 	req           *ua.ReadRequest
@@ -29,7 +28,7 @@ type OPCUA struct {
 // Init : function to intialize the plugin
 func (o *OPCUA) Init() error {
 
-	var authOption gopcua.Option
+	var authOption opcua.Option
 	opts := []opcua.Option{}
 
 	// Need to determine how the user wishes to connect
@@ -46,12 +45,12 @@ func (o *OPCUA) Init() error {
 	}
 
 	opts = append(opts, authOption)
-	opts = append(opts, gopcua.SecurityMode(ua.MessageSecurityModeNone))
+	opts = append(opts, opcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	o.ctx = context.Background()
 	// This version doesn't support security yet
 	//o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
-	o.client = gopcua.NewClient(o.URL, opts...)
+	o.client = opcua.NewClient(o.URL, opts...)
 
 	log.Print("opcua: Starting opcua plugin to monitor: ", o.URL)
 
