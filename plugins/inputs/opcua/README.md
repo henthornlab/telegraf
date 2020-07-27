@@ -4,8 +4,8 @@ Allows for the collection of metrics from an OPC UA server. Currently supports a
 
 To use this plugin you will need the following:
 
-1. Knowledge of your OPC UA server's address and endpoint. E.g. opc.tcp://server.com/endpoint
-2. Knowledge of the Node IDs of the tags you wish to monitor.
+1. Knowledge of your OPC UA server's address, port, and endpoint. For example: opc.tcp://server.com:4840/endpoint
+2. Knowledge of the Node IDs of the tags you wish to monitor. For example: ns=1;i=51028
 
 It is recommended to download a high quality OPC UA client (Prosys, UA Expert, etc.) which will allow you to browse your server. Record the Node IDs of the desired tags and enter them in the config portion of telegraf.
 
