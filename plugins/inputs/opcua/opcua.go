@@ -12,9 +12,9 @@ import (
 
 // Structure for all the plugin info
 type OPCUA struct {
-	ServerName string   `toml:"ServerName"`
-	URL        string   `toml:"URL"`
-	Nodes      []string `toml:"Nodes"`
+	ServerName string      `toml:"ServerName"`
+	URL        string      `toml:"URL"`
+	Nodes      []opcuaNode `toml:"Nodes"`
 	ctx        context.Context
 	client     *gopcua.Client
 	ID         []*ua.NodeID
@@ -31,42 +31,22 @@ func (o *OPCUA) Init() error {
 	// This version doesn't support security yet
 	o.client = gopcua.NewClient(o.URL, gopcua.SecurityMode(ua.MessageSecurityModeNone))
 
-	log.Print("Starting opcua plugin to monitor:", o.URL)
-	for i := range o.Nodes {
-		log.Print(o.Nodes[i])
-	}
+	log.Print("Starting opcua plugin to monitor: ", o.URL)
 
 	if err := o.client.Connect(o.ctx); err != nil {
 		log.Print("Fatal error in client connect")
 		log.Fatal(err)
 	}
 
-	log.Print("Parsing nodeID's")
-
 	for i := range o.Nodes {
-		log.Print("Parsing", o.Nodes[i])
-		tempID, err := ua.ParseNodeID(o.Nodes[i])
+		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
 			log.Fatalf("invalid node id: %v", err)
 		}
 		o.ID = append(o.ID, tempID)
-		log.Print("Building ReadValID ", tempID)
 		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
 
 	}
-
-	//o.ID, err = ua.ParseNodeID("ns=1;s=the.answer")
-	//if err != nil {
-	//	log.Fatalf("invalid node id: %v", err)
-	//}
-
-	log.Print("Building ReadRequest")
-	//o.req = &ua.ReadRequest{
-	//	MaxAge: 2000,
-	//	NodesToRead: []*ua.ReadValueID{
-	//		&ua.ReadValueID{NodeID: o.ID[0]}},
-	//	TimestampsToReturn: ua.TimestampsToReturnBoth,
-	//}
 
 	o.req = &ua.ReadRequest{
 		MaxAge:             2000,
@@ -85,9 +65,6 @@ func init() {
 // Gather implements the telegraf plugin interface method for data accumulation
 func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
-	fields := make(map[string]interface{})
-	tags := make(map[string]string)
-
 	resp, err := o.client.Read(o.req)
 
 	if err != nil {
@@ -98,14 +75,15 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		if resp.Results[i].Status != ua.StatusOK {
 			log.Fatalf("Status not OK: %v", resp.Results[i].Status)
 		}
-		//log.Printf("%#v", resp.Results[i].Value.Value())
-		fields[o.Nodes[i]] = resp.Results[i].Value.Value()
+		fields := make(map[string]interface{})
+		tags := make(map[string]string)
 
+		tags["server"] = o.ServerName
+		tags["tag"] = o.Nodes[i].Tag
+		fields["value"] = resp.Results[i].Value.Float()
+
+		acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
 	}
-
-	tags["server"] = o.ServerName
-
-	acc.AddFields("Answer", fields, tags)
 
 	return nil
 }
@@ -118,14 +96,15 @@ const sampleConfig = `
   ## Currently supports anonymous mode only
   ##
   ## Name given to OPC UA server for logging and tags
-  name = "Device"
+  ServerName = "Device"
   ## URL including endpoint
   URL = "http://localhost.com:4840/endpoint"
   ##
   ## List of Nodes to monitor
-  ## List of Nodes to monitor
 
-  Nodes = ["ns=1;s=the.answer","ns=1;i=51028"]
+  Nodes = [{Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
+  {Tag = "Tag2", NodeID = "ns=1;i=51028"}
+  ]
 `
 
 // SampleConfig returns a basic configuration for the plugin
@@ -139,6 +118,6 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	name   string `toml:"Name"`
-	nodeID string `toml:"NodeID"`
+	Tag    string `toml:"Tag"`
+	NodeID string `toml:"NodeID"`
 }
