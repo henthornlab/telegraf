@@ -28,28 +28,9 @@ type OPCUA struct {
 // Init : function to intialize the plugin
 func (o *OPCUA) Init() error {
 
-	var authOption opcua.Option
-	opts := []opcua.Option{}
-
-	// Need to determine how the user wishes to connect
-	switch o.Authorization {
-	case "anonymous":
-		authOption = opcua.AuthAnonymous()
-
-	case "user-password":
-		authOption = opcua.AuthUsername(o.Username, o.Password)
-
-	default:
-		log.Print("opcua: No valid authorization chosen... defaulting to anonymous")
-		authOption = opcua.AuthAnonymous()
-	}
-
-	opts = append(opts, authOption)
-	opts = append(opts, opcua.SecurityMode(ua.MessageSecurityModeNone))
-
 	o.ctx = context.Background()
 	// This version doesn't support certificates yet, only anonymous and passwords
-	o.client = opcua.NewClient(o.URL, opts...)
+	o.client = opcua.NewClient(o.URL, opcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	log.Print("opcua: Starting opcua plugin to monitor: ", o.URL)
 
@@ -98,11 +79,14 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
 
-		tags["server"] = o.ServerName
-		tags["tag"] = o.Nodes[i].Tag
-		fields["value"] = resp.Results[i].Value.Float()
+		if abs(resp.Results[i].Value.Float()-o.Nodes[i].value) > o.Nodes[i].Deadband {
+			tags["server"] = o.ServerName
+			tags["tag"] = o.Nodes[i].Tag
+			fields["value"] = resp.Results[i].Value.Float()
 
-		acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
+			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
+		}
+
 	}
 
 	return nil
@@ -125,10 +109,10 @@ const sampleConfig = `
   # Username = "foo"
   # Password = "bar"
 
-  ## List of Nodes to monitor
+  ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
   Nodes = [
-  {Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
-  {Tag = "Tag2", NodeID = "ns=1;i=51028"}
+  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = "0.0"},
+  {Tag = "Tag2", NodeID = "ns=1;i=51028"}, Deadband = "0.01"
   ]
 `
 
@@ -143,6 +127,8 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	Tag    string `toml:"Tag"`
-	NodeID string `toml:"NodeID"`
+	Tag      string  `toml:"Tag"`
+	NodeID   string  `toml:"NodeID"`
+	Deadband float64 `toml:"Deadband"`
+	value    float64
 }
