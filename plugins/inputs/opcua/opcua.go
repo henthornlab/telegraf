@@ -3,6 +3,7 @@ package opcua
 import (
 	"context"
 	"log"
+	"math"
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
@@ -47,6 +48,7 @@ func (o *OPCUA) Init() error {
 		o.ID = append(o.ID, tempID)
 		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
 
+		o.Nodes[i].value = math.MaxFloat64
 	}
 
 	o.req = &ua.ReadRequest{
@@ -79,12 +81,17 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
 
-		if abs(resp.Results[i].Value.Float()-o.Nodes[i].value) > o.Nodes[i].Deadband {
+		if math.Abs(resp.Results[i].Value.Float()-o.Nodes[i].value) > o.Nodes[i].Deadband {
+			log.Print("Updating value")
+
+			o.Nodes[i].value = resp.Results[i].Value.Float()
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
 			fields["value"] = resp.Results[i].Value.Float()
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
+		} else {
+			log.Print("Skipping due to deadband")
 		}
 
 	}
@@ -102,7 +109,7 @@ const sampleConfig = `
   ## Name given to OPC UA server for logging and tags
   ServerName = "Device"
   ## URL including endpoint
-  URL = "http://localhost.com:4840/endpoint"
+  URL = "opc.tcp://localhost.com:4840/endpoint"
   ## Select authorization mode. Either "anonymous" or "user-password"
   ## Be sure to provide a username/password if selecting "user-password"
   Authorization = "anonymous"
@@ -111,8 +118,8 @@ const sampleConfig = `
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
   Nodes = [
-  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = "0.0"},
-  {Tag = "Tag2", NodeID = "ns=1;i=51028"}, Deadband = "0.01"
+  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = 0.0},
+  {Tag = "Tag2", NodeID = "ns=1;i=51028", Deadband = 0.01},
   ]
 `
 
