@@ -41,7 +41,8 @@ func (o *OPCUA) Init() error {
 	}
 
 	for i := range o.Nodes {
-		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
+		log.Print("Scanning ", o.Nodes[i].nodeID, " with Deadband of ", o.Nodes[i].deadband)
+		tempID, err := ua.ParseNodeID(o.Nodes[i].nodeID)
 		if err != nil {
 			log.Fatalf("opcua: invalid node id: %v", err)
 		}
@@ -84,14 +85,16 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		o.Nodes[i].previousValue = o.Nodes[i].currentValue
 		o.Nodes[i].currentValue = resp.Results[i].Value.Float()
 
-		log.Print("Comparing ", o.Nodes[i].currentValue, " to ", o.Nodes[i].previousValue)
+		difference := math.Abs(o.Nodes[i].currentValue - o.Nodes[i].previousValue)
 
-		if math.Abs(o.Nodes[i].currentValue-o.Nodes[i].previousValue) > o.Nodes[i].Deadband {
-			log.Print("Updating value")
+		log.Print("Comparing ", o.Nodes[i].currentValue, " to ", o.Nodes[i].previousValue, " with difference of ", difference)
+
+		if difference > o.Nodes[i].deadband {
+			log.Print("Updating value because ", difference, " is greater than ", o.Nodes[i].deadband)
 
 			tags["server"] = o.ServerName
-			tags["tag"] = o.Nodes[i].Tag
-			tags["NodeID"] = o.Nodes[i].NodeID
+			tags["tag"] = o.Nodes[i].tag
+			tags["NodeID"] = o.Nodes[i].nodeID
 			fields["value"] = resp.Results[i].Value.Float()
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
@@ -123,8 +126,8 @@ const sampleConfig = `
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
   Nodes = [
-  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = 0.0},
-  {Tag = "Tag2", NodeID = "ns=1;i=51028", Deadband = 0.01},
+  {Tag = "Tag1", 	NodeID = "ns=1;s=the.answer", 	Deadband = 0.1},
+  {Tag = "Tag2", 	NodeID = "ns=1;i=51028", 		Deadband=0.01},
   ]
 `
 
@@ -139,9 +142,9 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	Tag           string  `toml:"Tag"`
-	NodeID        string  `toml:"NodeID"`
-	Deadband      float64 `toml:"Deadband"`
+	tag           string  `toml:"Tag"`
+	nodeID        string  `toml:"NodeID"`
+	deadband      float64 `toml:"Deadband"`
 	currentValue  float64
 	previousValue float64
 }
