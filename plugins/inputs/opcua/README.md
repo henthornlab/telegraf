@@ -12,7 +12,7 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
 ## Configuration
 
 ```toml
-   ## OPC-UA Connection Configuration
+  ## OPC-UA Connection Configuration
   ##
   ## The plugin designed to connect to OPC UA devices
   ## Currently supports anonymous mode only
@@ -29,12 +29,12 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
   Nodes = [
-  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = 0.0},
-  {Tag = "Tag2", NodeID = "ns=1;i=51028", Deadband = 0.01},
+  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeadband = 0.10},
+  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeadband = 0.10},
   ]
 ```
 
 ### Tested Configurations
 
-Open62541 Test server (https://github.com/open62541/open62541)
-DeltaV 14.3.1
+Open62541 Test server (https://github.com/open62541/open62541) in anonymous mode
+DeltaV 14.3.1 in anonymous mode
