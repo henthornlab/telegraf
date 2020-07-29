@@ -41,8 +41,8 @@ func (o *OPCUA) Init() error {
 	}
 
 	for i := range o.Nodes {
-		log.Print("Scanning ", o.Nodes[i].nodeID, " with Deadband of ", o.Nodes[i].deadband)
-		tempID, err := ua.ParseNodeID(o.Nodes[i].nodeID)
+		log.Print("Scanning ", o.Nodes[i].NodeID, " with Deadband of ", o.Nodes[i].AbsDeadband)
+		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
 			log.Fatalf("opcua: invalid node id: %v", err)
 		}
@@ -89,12 +89,12 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
 		log.Print("Comparing ", o.Nodes[i].currentValue, " to ", o.Nodes[i].previousValue, " with difference of ", difference)
 
-		if difference > o.Nodes[i].deadband {
-			log.Print("Updating value because ", difference, " is greater than ", o.Nodes[i].deadband)
+		if difference > o.Nodes[i].AbsDeadband {
+			log.Print("Updating value because ", difference, " is greater than ", o.Nodes[i].AbsDeadband)
 
 			tags["server"] = o.ServerName
-			tags["tag"] = o.Nodes[i].tag
-			tags["NodeID"] = o.Nodes[i].nodeID
+			tags["tag"] = o.Nodes[i].Tag
+			tags["NodeID"] = o.Nodes[i].NodeID
 			fields["value"] = resp.Results[i].Value.Float()
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
@@ -142,9 +142,9 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	tag           string  `toml:"Tag"`
-	nodeID        string  `toml:"NodeID"`
-	deadband      float64 `toml:"Deadband"`
+	Tag           string  `toml:"Tag"`
+	NodeID        string  `toml:"NodeID"`
+	AbsDeadband   float64 `toml:"AbsDeadband"`
 	currentValue  float64
 	previousValue float64
 }
