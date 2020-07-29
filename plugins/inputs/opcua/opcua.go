@@ -41,7 +41,7 @@ func (o *OPCUA) Init() error {
 	}
 
 	for i := range o.Nodes {
-		log.Print("Adding ", o.Nodes[i].NodeID, " with Deadband of ", o.Nodes[i].AbsDeadband)
+		log.Print("Adding ", o.Nodes[i].NodeID, " with absolute deviation of ", o.Nodes[i].AbsDeviation)
 		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
 			log.Fatalf("opcua: invalid node id: %v", err)
@@ -87,7 +87,7 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
 		difference := math.Abs(o.Nodes[i].currentValue - o.Nodes[i].previousValue)
 
-		if difference > o.Nodes[i].AbsDeadband {
+		if difference >= o.Nodes[i].AbsDeviation {
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
 			tags["NodeID"] = o.Nodes[i].NodeID
@@ -117,10 +117,10 @@ const sampleConfig = `
   # Username = "foo"
   # Password = "bar"
 
-  ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
+  ## List of Nodes to monitor including Tag (name), NodeID, and the absolute deviation (set to 0.0 to record all points)
   Nodes = [
-  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeadband = 0.10},
-  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeadband = 0.10},
+  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeviation = 0.10},
+  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeviation = 0.0},
   ]
 `
 
@@ -137,7 +137,7 @@ func (o *OPCUA) Description() string {
 type opcuaNode struct {
 	Tag           string  `toml:"Tag"`
 	NodeID        string  `toml:"NodeID"`
-	AbsDeadband   float64 `toml:"AbsDeadband"`
+	AbsDeviation  float64 `toml:"AbsDeviation"`
 	currentValue  float64
 	previousValue float64
 }
