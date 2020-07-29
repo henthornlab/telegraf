@@ -41,7 +41,7 @@ func (o *OPCUA) Init() error {
 	}
 
 	for i := range o.Nodes {
-		log.Print("Scanning ", o.Nodes[i].NodeID, " with Deadband of ", o.Nodes[i].AbsDeadband)
+		log.Print("Adding ", o.Nodes[i].NodeID, " with Deadband of ", o.Nodes[i].AbsDeadband)
 		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
 			log.Fatalf("opcua: invalid node id: %v", err)
@@ -87,21 +87,14 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
 		difference := math.Abs(o.Nodes[i].currentValue - o.Nodes[i].previousValue)
 
-		log.Print("Comparing ", o.Nodes[i].currentValue, " to ", o.Nodes[i].previousValue, " with difference of ", difference)
-
 		if difference > o.Nodes[i].AbsDeadband {
-			log.Print("Updating value because ", difference, " is greater than ", o.Nodes[i].AbsDeadband)
-
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
 			tags["NodeID"] = o.Nodes[i].NodeID
 			fields["value"] = resp.Results[i].Value.Float()
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
-		} else {
-			log.Print("Skipping due to deadband")
 		}
-
 	}
 
 	return nil
