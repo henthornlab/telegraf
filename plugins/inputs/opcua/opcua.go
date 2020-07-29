@@ -48,7 +48,7 @@ func (o *OPCUA) Init() error {
 		o.ID = append(o.ID, tempID)
 		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
 
-		o.Nodes[i].value = math.MaxFloat64
+		o.Nodes[i].currentValue = math.MaxFloat64
 	}
 
 	o.req = &ua.ReadRequest{
@@ -81,12 +81,17 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
 
-		if math.Abs(resp.Results[i].Value.Float()-o.Nodes[i].value) > o.Nodes[i].Deadband {
+		o.Nodes[i].previousValue = o.Nodes[i].currentValue
+		o.Nodes[i].currentValue = resp.Results[i].Value.Float()
+
+		log.Print("Comparing ", o.Nodes[i].currentValue, " to ", o.Nodes[i].previousValue)
+
+		if math.Abs(o.Nodes[i].currentValue-o.Nodes[i].previousValue) > o.Nodes[i].Deadband {
 			log.Print("Updating value")
 
-			o.Nodes[i].value = resp.Results[i].Value.Float()
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
+			tags["NodeID"] = o.Nodes[i].NodeID
 			fields["value"] = resp.Results[i].Value.Float()
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
@@ -134,8 +139,9 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	Tag      string  `toml:"Tag"`
-	NodeID   string  `toml:"NodeID"`
-	Deadband float64 `toml:"Deadband"`
-	value    float64
+	Tag           string  `toml:"Tag"`
+	NodeID        string  `toml:"NodeID"`
+	Deadband      float64 `toml:"Deadband"`
+	currentValue  float64
+	previousValue float64
 }

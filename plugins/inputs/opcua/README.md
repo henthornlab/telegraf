@@ -1,6 +1,6 @@
 # OPC UA Input Plugin
 
-Allows for the collection of metrics from an OPC UA server. Currently supports anonymous and username/password authentication. Certificates are not supported at this time.
+Allows for the collection of metrics from an OPC UA server. Currently supports anonymous (no) authentication. Certificates are not supported at this time.
 
 To use this plugin you will need the following:
 
@@ -12,7 +12,7 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
 ## Configuration
 
 ```toml
-  ## OPC-UA Connection Configuration
+   ## OPC-UA Connection Configuration
   ##
   ## The plugin designed to connect to OPC UA devices
   ## Currently supports anonymous mode only
@@ -20,20 +20,21 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
   ## Name given to OPC UA server for logging and tags
   ServerName = "Device"
   ## URL including endpoint
-  URL = "http://localhost.com:4840/endpoint"
+  URL = "opc.tcp://localhost.com:4840/endpoint"
   ## Select authorization mode. Either "anonymous" or "user-password"
   ## Be sure to provide a username/password if selecting "user-password"
   Authorization = "anonymous"
   # Username = "foo"
   # Password = "bar"
 
-  ## List of Nodes to monitor
+  ## List of Nodes to monitor including Tag (name), NodeID, and the absolute Deadband
   Nodes = [
-  {Tag = "Tag1", NodeID = "ns=1;s=the.answer"},
-  {Tag = "Tag2", NodeID = "ns=1;i=51028"}
+  {Tag = "Tag1", NodeID = "ns=1;s=the.answer", Deadband = 0.0},
+  {Tag = "Tag2", NodeID = "ns=1;i=51028", Deadband = 0.01},
   ]
 ```
 
 ### Tested Configurations
 
 Open62541 Test server (https://github.com/open62541/open62541)
+DeltaV 14.3.1
