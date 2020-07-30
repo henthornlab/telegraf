@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"math"
+	"time"
 
 	"github.com/gopcua/opcua"
 	"github.com/gopcua/opcua/ua"
@@ -41,7 +42,6 @@ func (o *OPCUA) Init() error {
 	}
 
 	for i := range o.Nodes {
-		log.Print("Adding ", o.Nodes[i].NodeID, " with absolute deviation of ", o.Nodes[i].AbsDeviation)
 		tempID, err := ua.ParseNodeID(o.Nodes[i].NodeID)
 		if err != nil {
 			log.Fatalf("opcua: invalid node id: %v", err)
@@ -49,7 +49,12 @@ func (o *OPCUA) Init() error {
 		o.ID = append(o.ID, tempID)
 		o.ReadValID = append(o.ReadValID, &ua.ReadValueID{NodeID: tempID})
 
+		// Initialize info on the nodes for deviation and update interval checks
 		o.Nodes[i].currentValue = math.MaxFloat64
+		o.Nodes[i].lastUpdate = time.Now()
+
+		o.Nodes[i].maxTimeInterval, _ = time.ParseDuration(o.Nodes[i].AtLeastEvery)
+		log.Print("Adding ", o.Nodes[i].NodeID, " with absolute deviation of ", o.Nodes[i].AbsDeviation, " at least every ", o.Nodes[i].maxTimeInterval)
 	}
 
 	o.req = &ua.ReadRequest{
@@ -69,6 +74,8 @@ func init() {
 // Gather implements the telegraf plugin interface method for data accumulation
 func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
+	timeNow := time.Now()
+
 	resp, err := o.client.Read(o.req)
 
 	if err != nil {
@@ -76,6 +83,7 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for i := range resp.Results {
+
 		if resp.Results[i].Status != ua.StatusOK {
 			log.Fatalf("opcua: Status not OK: %v", resp.Results[i].Status)
 		}
@@ -86,14 +94,19 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		o.Nodes[i].currentValue = resp.Results[i].Value.Float()
 
 		difference := math.Abs(o.Nodes[i].currentValue - o.Nodes[i].previousValue)
+		timeDiff := timeNow.Sub(o.Nodes[i].lastUpdate)
 
-		if difference >= o.Nodes[i].AbsDeviation {
+		// Update the value if we are outside the deviation or the maxTimeInterval
+		if (difference >= o.Nodes[i].AbsDeviation) || (timeDiff >= o.Nodes[i].maxTimeInterval) {
+
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
 			tags["NodeID"] = o.Nodes[i].NodeID
-			fields["value"] = resp.Results[i].Value.Float()
+			fields["value"] = o.Nodes[i].currentValue
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
+
+			o.Nodes[i].lastUpdate = time.Now()
 		}
 	}
 
@@ -118,9 +131,10 @@ const sampleConfig = `
   # Password = "bar"
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute deviation (set to 0.0 to record all points)
+  ## AtLeastEvery forces an update on the point in Golang time, "10s", "30m", "24h", etc.
   Nodes = [
-  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeviation = 0.10},
-  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeviation = 0.0},
+  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeviation = 0.10, AtLeastEvery = "30s"},
+  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeviation = 0.0, AtLeastEvery = "1h"},
   ]
 `
 
@@ -135,9 +149,12 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	Tag           string  `toml:"Tag"`
-	NodeID        string  `toml:"NodeID"`
-	AbsDeviation  float64 `toml:"AbsDeviation"`
-	currentValue  float64
-	previousValue float64
+	Tag             string  `toml:"Tag"`
+	NodeID          string  `toml:"NodeID"`
+	AbsDeviation    float64 `toml:"AbsDeviation"`
+	AtLeastEvery    string  `toml:"AtLeastEvery"`
+	maxTimeInterval time.Duration
+	lastUpdate      time.Time
+	currentValue    float64
+	previousValue   float64
 }
