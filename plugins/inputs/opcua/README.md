@@ -19,18 +19,14 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
   ##
   ## Name given to OPC UA server for logging and tags
   ServerName = "Device"
-  ## URL including endpoint
+  ## URL including endpoint. Only anonymous logins at this point
   URL = "opc.tcp://localhost.com:4840/endpoint"
-  ## Select authorization mode. Either "anonymous" or "user-password"
-  ## Be sure to provide a username/password if selecting "user-password"
-  Authorization = "anonymous"
-  # Username = "foo"
-  # Password = "bar"
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute deviation (set to 0.0 to record all points)
+  ## AtLeastEvery forces an update on the point in Golang time, "10s", "30m", "24h", etc.
   Nodes = [
-  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeviation = 0.10},
-  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeviation = 0.0},
+  {Tag = "HeatExchanger1 Temp", NodeID = "ns=2;s=TE-800-07/AI1/PV.CV", AbsDeviation = 0.10, AtLeastEvery = "30s"},
+  {Tag = "Heat Exchanger1 Pressure", NodeID = "ns=2;i=1234", AbsDeviation = 0.0, AtLeastEvery = "1h"},
   ]
 ```
 

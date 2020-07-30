@@ -14,17 +14,14 @@ import (
 
 // OPCUA : Structure for all the plugin info
 type OPCUA struct {
-	ServerName    string      `toml:"ServerName"`
-	URL           string      `toml:"URL"`
-	Nodes         []opcuaNode `toml:"Nodes"`
-	Authorization string      `toml:"Authorization"`
-	Username      string      `toml:"Username"`
-	Password      string      `toml:"Password"`
-	ctx           context.Context
-	client        *opcua.Client
-	ID            []*ua.NodeID
-	ReadValID     []*ua.ReadValueID
-	req           *ua.ReadRequest
+	ServerName string      `toml:"ServerName"`
+	URL        string      `toml:"URL"`
+	Nodes      []opcuaNode `toml:"Nodes"`
+	ctx        context.Context
+	client     *opcua.Client
+	ID         []*ua.NodeID
+	ReadValID  []*ua.ReadValueID
+	req        *ua.ReadRequest
 }
 
 // Init : function to intialize the plugin
@@ -122,13 +119,8 @@ const sampleConfig = `
   ##
   ## Name given to OPC UA server for logging and tags
   ServerName = "Device"
-  ## URL including endpoint
+  ## URL including endpoint. Only anonymous logins at this point
   URL = "opc.tcp://localhost.com:4840/endpoint"
-  ## Select authorization mode. Either "anonymous" or "user-password"
-  ## Be sure to provide a username/password if selecting "user-password"
-  Authorization = "anonymous"
-  # Username = "foo"
-  # Password = "bar"
 
   ## List of Nodes to monitor including Tag (name), NodeID, and the absolute deviation (set to 0.0 to record all points)
   ## AtLeastEvery forces an update on the point in Golang time, "10s", "30m", "24h", etc.
