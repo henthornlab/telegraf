@@ -71,8 +71,6 @@ func init() {
 // Gather implements the telegraf plugin interface method for data accumulation
 func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
-	timeNow := time.Now()
-
 	resp, err := o.client.Read(o.req)
 
 	if err != nil {
@@ -87,14 +85,10 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 		fields := make(map[string]interface{})
 		tags := make(map[string]string)
 
-		o.Nodes[i].previousValue = o.Nodes[i].currentValue
-		o.Nodes[i].currentValue = resp.Results[i].Value.Float()
+		// Update the value to the latest read
+		o.Nodes[i].UpdateValue(resp.Results[i].Value.Float())
 
-		difference := math.Abs(o.Nodes[i].currentValue - o.Nodes[i].previousValue)
-		timeDiff := timeNow.Sub(o.Nodes[i].lastUpdate)
-
-		// Update the value if we are outside the deviation or the maxTimeInterval
-		if (difference >= o.Nodes[i].AbsDeviation) || (timeDiff >= o.Nodes[i].maxTimeInterval) {
+		if o.Nodes[i].NeedsUpdate() {
 
 			tags["server"] = o.ServerName
 			tags["tag"] = o.Nodes[i].Tag
@@ -103,7 +97,8 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 
 			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
 
-			o.Nodes[i].lastUpdate = time.Now()
+			o.Nodes[i].UpdateLastUpdate()
+
 		}
 	}
 
@@ -149,4 +144,22 @@ type opcuaNode struct {
 	lastUpdate      time.Time
 	currentValue    float64
 	previousValue   float64
+}
+
+func (node *opcuaNode) UpdateValue(val float64) {
+	node.previousValue = node.currentValue
+	node.currentValue = val
+}
+
+func (node opcuaNode) NeedsUpdate() bool {
+
+	timeNow := time.Now()
+	if (math.Abs(node.currentValue-node.previousValue) >= node.AbsDeviation) || (timeNow.Sub(node.lastUpdate) >= node.maxTimeInterval) {
+		return true
+	}
+	return false
+}
+
+func (node *opcuaNode) UpdateLastUpdate() {
+	node.lastUpdate = time.Now()
 }
