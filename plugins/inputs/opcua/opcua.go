@@ -51,7 +51,7 @@ func (o *OPCUA) Init() error {
 		o.Nodes[i].lastUpdate = time.Now()
 
 		o.Nodes[i].maxTimeInterval, _ = time.ParseDuration(o.Nodes[i].AtLeastEvery)
-		log.Print("Adding ", o.Nodes[i].NodeID, " with absolute deviation of ", o.Nodes[i].AbsDeviation, " at least every ", o.Nodes[i].maxTimeInterval)
+		//log.Print("Adding ", o.Nodes[i].NodeID, " with absolute deviation of ", o.Nodes[i].AbsDeviation, " at least every ", o.Nodes[i].maxTimeInterval)
 	}
 
 	o.req = &ua.ReadRequest{
@@ -141,9 +141,8 @@ func (node *opcuaNode) UpdateValue(dataVal *ua.DataValue) {
 }
 
 func (node opcuaNode) NeedsUpdate() bool {
-	timeNow := time.Now()
 
-	if (math.Abs(node.currentValue-node.previousValue) >= node.AbsDeviation) || (timeNow.Sub(node.lastUpdate) >= node.maxTimeInterval) {
+	if (math.Abs(node.currentValue-node.previousValue) >= node.AbsDeviation) || (time.Now().Sub(node.lastUpdate) >= node.maxTimeInterval) {
 		return true
 	}
 	return false

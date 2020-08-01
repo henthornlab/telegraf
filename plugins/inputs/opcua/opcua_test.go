@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type testIt struct {
+type testUpdate struct {
 	currVal  float64
 	prevVal  float64
 	absDev   float64
@@ -17,7 +17,7 @@ type testIt struct {
 func TestOpcua_NeedsUpdate(t *testing.T) {
 
 	// Assumes the item was last updated 60 seconds ago
-	var testConds = []testIt{
+	var testConds = []testUpdate{
 		{1.0, 0.8, 0.01, "90s", true},
 		{1.0, 1.0, 0.01, "90s", false},
 		{-16.0, -15.0, 0.01, "90s", true},
@@ -27,13 +27,16 @@ func TestOpcua_NeedsUpdate(t *testing.T) {
 	}
 
 	for i := range testConds {
-		o := opcuaNode{}
+
 		tNow := time.Now()
 
-		o.currentValue = testConds[i].currVal
-		o.previousValue = testConds[i].prevVal
-		o.AbsDeviation = testConds[i].absDev
-		o.lastUpdate = tNow.Add(-time.Second * 60)
+		o := opcuaNode{
+			currentValue:  testConds[i].currVal,
+			previousValue: testConds[i].prevVal,
+			AbsDeviation:  testConds[i].absDev,
+			lastUpdate:    tNow.Add(-time.Second * 60),
+		}
+
 		o.maxTimeInterval, _ = time.ParseDuration(testConds[i].maxInter)
 
 		log.Print("NeedsUpdate is ", o.NeedsUpdate())
@@ -42,4 +45,8 @@ func TestOpcua_NeedsUpdate(t *testing.T) {
 			t.Error("Update incorrect")
 		}
 	}
+}
+
+func TestOpc_sendMetrics(t *testing.T) {
+
 }
