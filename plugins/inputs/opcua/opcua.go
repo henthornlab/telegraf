@@ -154,6 +154,7 @@ func (node *opcuaNode) UpdateValue(val float64) {
 func (node opcuaNode) NeedsUpdate() bool {
 
 	timeNow := time.Now()
+
 	if (math.Abs(node.currentValue-node.previousValue) >= node.AbsDeviation) || (timeNow.Sub(node.lastUpdate) >= node.maxTimeInterval) {
 		return true
 	}
