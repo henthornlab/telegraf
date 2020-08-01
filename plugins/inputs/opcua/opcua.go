@@ -28,7 +28,7 @@ type OPCUA struct {
 func (o *OPCUA) Init() error {
 
 	o.ctx = context.Background()
-	// This version doesn't support certificates yet, only anonymous and passwords
+	// This version doesn't support certificates yet, only anonymous
 	o.client = opcua.NewClient(o.URL, opcua.SecurityMode(ua.MessageSecurityModeNone))
 
 	log.Print("opcua: Starting opcua plugin to monitor: ", o.URL)
@@ -78,27 +78,14 @@ func (o *OPCUA) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for i := range resp.Results {
-
 		if resp.Results[i].Status != ua.StatusOK {
-			log.Fatalf("opcua: Status not OK: %v", resp.Results[i].Status)
+			log.Fatalf("opcua: Status not OK: %v on node %v", resp.Results[i].Status, o.Nodes[i].NodeID)
 		}
-		fields := make(map[string]interface{})
-		tags := make(map[string]string)
 
-		// Update the value to the latest read
-		o.Nodes[i].UpdateValue(resp.Results[i].Value.Float())
+		o.Nodes[i].UpdateValue(resp.Results[i])
 
 		if o.Nodes[i].NeedsUpdate() {
-
-			tags["server"] = o.ServerName
-			tags["tag"] = o.Nodes[i].Tag
-			tags["NodeID"] = o.Nodes[i].NodeID
-			fields["value"] = o.Nodes[i].currentValue
-
-			acc.AddFields("opcua", fields, tags, resp.Results[i].SourceTimestamp)
-
-			o.Nodes[i].UpdateLastUpdate()
-
+			o.Nodes[i].sendMetrics(o.ServerName, acc)
 		}
 	}
 
@@ -136,23 +123,24 @@ func (o *OPCUA) Description() string {
 }
 
 type opcuaNode struct {
-	Tag             string  `toml:"Tag"`
-	NodeID          string  `toml:"NodeID"`
-	AbsDeviation    float64 `toml:"AbsDeviation"`
-	AtLeastEvery    string  `toml:"AtLeastEvery"`
-	maxTimeInterval time.Duration
-	lastUpdate      time.Time
-	currentValue    float64
-	previousValue   float64
+	Tag                   string  `toml:"Tag"`
+	NodeID                string  `toml:"NodeID"`
+	AbsDeviation          float64 `toml:"AbsDeviation"`
+	AtLeastEvery          string  `toml:"AtLeastEvery"`
+	maxTimeInterval       time.Duration
+	lastUpdate            time.Time
+	currentValue          float64
+	previousValue         float64
+	currentValueTimeStamp time.Time
 }
 
-func (node *opcuaNode) UpdateValue(val float64) {
+func (node *opcuaNode) UpdateValue(dataVal *ua.DataValue) {
 	node.previousValue = node.currentValue
-	node.currentValue = val
+	node.currentValue = dataVal.Value.Float()
+	node.currentValueTimeStamp = dataVal.SourceTimestamp
 }
 
 func (node opcuaNode) NeedsUpdate() bool {
-
 	timeNow := time.Now()
 
 	if (math.Abs(node.currentValue-node.previousValue) >= node.AbsDeviation) || (timeNow.Sub(node.lastUpdate) >= node.maxTimeInterval) {
@@ -162,5 +150,17 @@ func (node opcuaNode) NeedsUpdate() bool {
 }
 
 func (node *opcuaNode) UpdateLastUpdate() {
+	node.lastUpdate = time.Now()
+}
+
+func (node *opcuaNode) sendMetrics(serverName string, acc telegraf.Accumulator) {
+	fields := make(map[string]interface{})
+	tags := make(map[string]string)
+
+	tags["server"] = serverName
+	tags["tag"] = node.Tag
+	tags["NodeID"] = node.NodeID
+	fields["value"] = node.currentValue
+	acc.AddFields("opcua", fields, tags, node.currentValueTimeStamp)
 	node.lastUpdate = time.Now()
 }
