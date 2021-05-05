@@ -33,4 +33,5 @@ It is recommended to download a high quality OPC UA client (Prosys, UA Expert, e
 ### Tested Configurations
 
 Open62541 Test server (https://github.com/open62541/open62541) in anonymous mode
+
 DeltaV 14.3.1 in anonymous mode
